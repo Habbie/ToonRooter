@@ -146,7 +146,8 @@ def main():
     reboot_after = not args.dont_reboot_after
     uboot_only = args.uboot_only
     boot_only = args.boot_only
-
+    should_create_keys = False
+    
     if jtag_hardware == "auto":
         jtag_hardware = detect_jtag_hardware()
         log.info("Detected JTAG hardware '{}'".format(jtag_hardware))
@@ -159,14 +160,28 @@ def main():
             raise Exception("RSA key is not valid")
         log.info("Using RSA key in {}".format(args.ssh_public_key))
     else:
-        (pub, priv) = sshkeys.generate_key_pair(args.private_key_password)
-        ssh_pubkey_data = pub
-        with open("{}".format(args.output_ssh_key), 'w') as f:
-            f.write(priv)
-        with open("{}.pub".format(args.output_ssh_key), 'w') as f:
-            f.write(pub)
-        log.info("Written private and public key pair to {0} and {0}.pub, respectively".format(args.output_ssh_key))
-
+        if (os.path.exists("{}".format(args.output_ssh_key)) and os.path.exists("{}.pub".format(args.output_ssh_key))): 
+            # Still load the public key
+            with open("{}".format(args.output_ssh_key), 'r') as f:
+                ssh_pubkey_data = f.read()
+        
+        # If the if statment above loads the public key, this check should pass, if the file is empty, assumed is that this check should not pass
+        if (should_create_keys = not sshkeys.check_public_key(ssh_pubkey_data)):
+            log.info("RSA key is not valid")
+        
+        if should_create_keys
+            # Do not write the public and private keys, they get overwritten everytime this script runs.
+            # Found that out the hard way..
+            (pub, priv) = sshkeys.generate_key_pair(args.private_key_password)
+            ssh_pubkey_data = pub
+            with open("{}".format(args.output_ssh_key), 'w') as f:
+                f.write(priv)
+            with open("{}.pub".format(args.output_ssh_key), 'w') as f:
+                f.write(pub)
+            log.info("Written private and public key pair to {0} and {0}.pub, respectively".format(args.output_ssh_key))
+        else:
+            log.info("Not creating a key pair, because one exists.")
+        
     import json
     params = {
         "port" : serial_path,
