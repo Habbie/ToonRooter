@@ -74,6 +74,41 @@ sudo python . --jtag-available
 
 Then reset your Toon and let the magic happen :)
 
+## Logging in to the Toon after rooting
+
+During the rooting process, the script will generate a random root password and output it to 
+the console. It will also generate an ssh private key. You can use either to log in to the 
+Toon after it is rooted. The script does not use a generic default password for all Toons 
+because it's considered a security hazard (and there's no easy way to change the password on 
+the Toon itself). 
+
+The most secure way of logging in is using the SSH private key (even better if you encrypted 
+the key using the `--private-key-password` argument). 
+
+After rooting, a file called `id_rsa` should be present in your working directory (or something 
+else if you used `--output-ssh-key`). 
+Logging in to the Toon can then be done by running:
+```bash 
+ssh -i id_rsa root@[TOON IP]
+```
+If you used the `--private-key-password` argument, you will now be asked to insert the password
+you provided there. If you didn't, it should log in without asking for a password at all. 
+
+In the latter case, please consider encrypting it later using the following command:
+```bash
+ssh-keygen -p -f id_rsa
+```
+
+If for some reason you lost both the ssh private key and the password, you'll have to 
+re-root your Toon.
+
+## It's not working!
+Please re-check your wiring. If you're sure the wiring is correct, try the command with 
+the `--output-level DEBUG` flag set and head over to 
+[this friendly forum](https://www.domoticaforum.eu/viewtopic.php?f=101&t=11999) where the
+issue has most likely already been solved. If not, post a reply and the active community
+will probably help you out.
+
 ## But I don't have a Pi
 
 You should definitely get a Pi.
