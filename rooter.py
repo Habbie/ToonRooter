@@ -10,7 +10,7 @@ import string
 import random
 from time import sleep
 from serial.serialutil import Timeout
-import StringIO
+import io
 import tempfile
 
 logging.basicConfig(level=logging.DEBUG)
@@ -136,12 +136,12 @@ class Rooter(object):
         with tarfile.open(tar_path, "w:gz") as tar:
             tar.add('payload/', arcname='payload')
 
-            ssh_key_str = StringIO.StringIO(ssh_key)
+            ssh_key_str = io.StringIO(ssh_key)
 
             info = tarfile.TarInfo(name="payload/id_rsa.pub")
             info.size=len(ssh_key)
 
-            tar.addfile(tarinfo=info, fileobj=StringIO.StringIO(ssh_key))
+            tar.addfile(tarinfo=info, fileobj=io.StringIO(ssh_key))
         return tar_path
 
     def write_payload(self):
@@ -240,7 +240,7 @@ def read_until(port, terminators=None, size=None):
     """
     if not terminators:
         terminators = ['\n']
-    terms = map(lambda t: (t, len(t)), terminators)
+    terms = [(t, len(t)) for t in terminators]
     line = bytearray()
     timeout = Timeout(port._timeout)
     while True:
