@@ -153,7 +153,7 @@ def main():
 
     import sshkeys
     if args.ssh_public_key:
-        with open(args.ssh_public_key, 'r') as f:
+        with open(args.ssh_public_key, 'rb') as f:
             ssh_pubkey_data = f.read()
         if not sshkeys.check_public_key(ssh_pubkey_data):
             raise Exception("RSA key is not valid")
@@ -161,16 +161,16 @@ def main():
     else:
         (pub, priv) = sshkeys.generate_key_pair(args.private_key_password)
         ssh_pubkey_data = pub
-        with open("{}".format(args.output_ssh_key), 'w') as f:
+        with open("{}".format(args.output_ssh_key), 'wb') as f:
             f.write(priv)
-        with open("{}.pub".format(args.output_ssh_key), 'w') as f:
+        with open("{}.pub".format(args.output_ssh_key), 'wb') as f:
             f.write(pub)
         log.info("Written private and public key pair to {0} and {0}.pub, respectively".format(args.output_ssh_key))
 
     import json
     params = {
         "port" : serial_path,
-        "ssh_pubkey_data" : ssh_pubkey_data,
+        "ssh_pubkey_data" : ssh_pubkey_data.decode('ascii'),
         "has_jtag" : jtag_available,
         "check_uboot" : check_current_bootloader,
         "cleanup_payload" : cleanup_payload,

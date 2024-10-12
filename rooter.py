@@ -24,7 +24,7 @@ class Rooter(object):
                 baudrate=115200
             )
         self._port = params['port']
-        self._ssh_pubkey_data = params['ssh_pubkey_data']
+        self._ssh_pubkey_data = params['ssh_pubkey_data'].encode('ascii')
         self._has_jtag = params['has_jtag']
         self._check_uboot = params['check_uboot']
         self._cleanup_payload = params['cleanup_payload']
@@ -85,16 +85,16 @@ class Rooter(object):
     def read_uboot_version(self):
         version_line_match = re.compile(r'^U-Boot ([^ ]+)')
         while True:
-            line = self._port.readline().strip()
+            line = self._port.readline().strip().decode('ascii')
             match = version_line_match.match(line)
             if match:
                 return match.group(1)
 
     def access_uboot(self, password):
         log.info("Logging in to U-Boot")
-        self._port.write(password)
+        self._port.write(password.encode('ascii'))
         self._port.flush()
-        log.debug(self._port.read_until("U-Boot>"))
+        log.debug(self._port.read_until(b"U-Boot>"))
         log.debug("Logged in to U-Boot")
 
     def patch_uboot(self):
@@ -103,16 +103,16 @@ class Rooter(object):
         log.info("Patching U-Boot")
         port.reset_input_buffer()
         sleep(0.1)
-        port.write("printenv\n")
+        port.write(b"printenv\n")
         port.flush()
-        add_misc_match = re.compile(r'^addmisc=(.+)$')
+        add_misc_match = re.compile(br'^addmisc=(.+)$')
         add_misc_val = None
 
         sleep(0.5)
 
-        lines = port.read_until("U-Boot>")
+        lines = port.read_until(b"U-Boot>")
         log.debug(lines)
-        for line in lines.split('\n'):
+        for line in lines.split(b'\n'):
             line = line.strip()
             log.debug(line)
             match = add_misc_match.match(line)
@@ -123,11 +123,11 @@ class Rooter(object):
             log.error("Could not find value for addmisc environment variable")
             return
 
-        cmd = "setenv addmisc " + re.sub(r'([\$;])',r'\\\1', add_misc_val + " init=/bin/sh")
-        port.write(cmd + "\n")
+        cmd = b"setenv addmisc " + re.sub(br'([\$;])',br'\\\1', add_misc_val + b" init=/bin/sh")
+        port.write(cmd + b"\n")
         port.flush()
-        log.debug(port.read_until("U-Boot>"))
-        port.write("run boot_nand\n")
+        log.debug(port.read_until(b"U-Boot>"))
+        port.write(b"run boot_nand\n")
         port.flush()
 
     def create_payload_tar(self):
@@ -136,24 +136,24 @@ class Rooter(object):
         with tarfile.open(tar_path, "w:gz") as tar:
             tar.add('payload/', arcname='payload')
 
-            ssh_key_str = io.StringIO(ssh_key)
+            ssh_key_str = io.BytesIO(ssh_key)
 
             info = tarfile.TarInfo(name="payload/id_rsa.pub")
             info.size=len(ssh_key)
 
-            tar.addfile(tarinfo=info, fileobj=io.StringIO(ssh_key))
+            tar.addfile(tarinfo=info, fileobj=io.BytesIO(ssh_key))
         return tar_path
 
     def write_payload(self):
         port = self._port
         tar_path = self.create_payload_tar()
 
-        log.debug(port.read_until("/ # "))
-        port.write("timeout -t 60 base64 -d | tar zxf -\n")
+        log.debug(port.read_until(b"/ # "))
+        port.write(b"timeout -t 60 base64 -d | tar zxf -\n")
         port.flush()
 
         log.info("Transferring payload")
-        with open(tar_path, 'r') as f:
+        with open(tar_path, 'rb') as f:
             base64.encode(f, port)
 
         log.info("Transferring payload done. Waiting for toon to finish.")
@@ -161,10 +161,10 @@ class Rooter(object):
 
         port.flush()
         port.reset_input_buffer()
-        port.write("\x04")
+        port.write(b"\x04")
         port.flush()
-        port.write("\n")
-        log.debug(port.read_until("/ # "))
+        port.write(b"\n")
+        log.debug(port.read_until(b"/ # "))
         log.info("Transferring payload finished")
 
     def patch_toon(self):
@@ -172,13 +172,13 @@ class Rooter(object):
             self._port, self._cleanup_payload, self._reboot_after)
         log.info("Patching Toon")
         password = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(8))
-        port.write("if [ -f payload/patch_toon.sh ] ; then sh payload/patch_toon.sh \"{}\" ; fi\n".format(password))
+        port.write("if [ -f payload/patch_toon.sh ] ; then sh payload/patch_toon.sh \"{}\" ; fi\n".format(password).encode('ascii'))
         try:
             while True:
-                line = read_until(port, ["/ # ", "\n"])
-                if line == "/ # ":
+                line = read_until(port, [b"/ # ", b"\n"])
+                if line == b"/ # ":
                     break
-                if line.startswith(">>>"):
+                if line.startswith(b">>>"):
                     log.info(line.strip())
                 else:
                     log.debug(line.strip())
@@ -187,11 +187,11 @@ class Rooter(object):
             sleep(5)
         if clean_up:
             log.info("Cleaning up")
-            port.write("rm -r payload\n")
-            log.debug(port.read_until("/ # "))
+            port.write(b"rm -r payload\n")
+            log.debug(port.read_until(b"/ # "))
         if reboot:
             log.info("Rebooting")
-            port.write("/etc/init.d/reboot\n")
+            port.write(b"/etc/init.d/reboot\n")
 
     def start_bootloader(self, bin_path):
 
